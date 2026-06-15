@@ -1,6 +1,5 @@
 name: Integracion Continua - Reloj Flask
 
-# El flujo se ejecuta cada vez que haces un "push" a la rama principal
 on:
   push:
     branches: [ "main", "master" ]
@@ -12,23 +11,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. Descarga el código de tu repositorio en el servidor de GitHub
     - name: Descargar codigo
       uses: actions/checkout@v4
 
-    # 2. Configura el entorno de Python
     - name: Configurar Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.12'
 
-    # 3. Instala Flask usando tu requirements.txt global
     - name: Instalar dependencias
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    # 4. Prueba que el contenedor de Docker se construya sin errores
-    - name: Validar construccion de Docker
+    # 1. Construye la imagen de Docker
+    - name: Construir imagen de Docker
       run: |
         docker build -t app-reloj:latest .
+
+    # 2. Convierte la imagen en un archivo .tar para poder descargarla
+    - name: Guardar imagen de Docker en archivo TAR
+      run: |
+        docker save app-reloj:latest > app-reloj.tar
+
+    # 3. Sube el archivo a GitHub Actions para que aparezca el botón de descarga
+    - name: Subir imagen como Artefacto descargable
+      uses: actions/upload-artifact@v4
+      with:
+        name: imagen-docker-reloj
+        path: app-reloj.tar
+        retention-days: 1 # Se borrará automáticamente en 1 día para no llenar tu espacio
