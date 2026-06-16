@@ -2,9 +2,8 @@ name: Publicar Imagen en GitHub Packages
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "main"]
 
-# Permisos necesarios para poder inyectar el paquete en tu perfil
 permissions:
   contents: read
   packages: write
@@ -14,42 +13,44 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Descargar codigo
-      uses: actions/checkout@v4
+      - name: Descargar codigo
+        uses: actions/checkout@v4
 
-    # 1. Inicia sesión en el contenedor de GitHub usando el Token automático
-    - name: Iniciar sesion en GitHub Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ghcr.io
-        username: victor1997h
-        password: ${{ secrets.GITHUB_TOKEN }}
+      # 1. Login en GitHub Container Registry
+      - name: Iniciar sesion en GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-    # 2. Construye y publica la imagen directamente a tus Packages usando tu usuario
-    - name: Construir y subir imagen a GitHub Packages
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        push: true
-        tags: |
-          ghcr.io/victor1997h/app-reloj:latest
-    -name: Mostrar variable(solo locales,no secretos)
-      run: |
-        echo probando connexiones SSH  con:"
-        echo "host: ${{ secrets.VPS_HOST }}"
-        echo "usuario: ${{ secrets.VPS_USER }}"
-        echo "puerto: ${{ secrets.VPS_PORT }}"
-        echo "clave: ${{ secrets.VPS_PASSWORD }}"
-      
-    .name: Probar la ssh en el vps 
-    uses: appleboy/ssh-action@v1
-    with:
-      host: ${{ secrets.VPS_HOST }}
-      username: ${{ secrets.VPS_USER }}
-      password: ${{ secrets.VPS_PASSWORD }}
-      port: ${{ secrets.VPS_PORT }}
-      script: |
-        echo "probando conexione SSH en el VPS"
-        hostname
-        whoami
-        uptime
+      # 2. Build y push de imagen Docker
+      - name: Construir y subir imagen a GitHub Packages
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/victor1997h/app-reloj:latest
+
+      # 3. Mostrar variables (solo debug)
+      - name: Mostrar variables (no secretos sensibles)
+        run: |
+          echo "probando conexiones SSH"
+          echo "host: ${{ secrets.VPS_HOST }}"
+          echo "usuario: ${{ secrets.VPS_USER }}"
+          echo "puerto: ${{ secrets.VPS_PORT }}"
+
+      # 4. Probar SSH en VPS
+      - name: Probar SSH en el VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            echo "probando conexión SSH en el VPS"
+            hostname
+            whoami
+            uptime
