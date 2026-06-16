@@ -33,3 +33,23 @@ jobs:
         push: true
         tags: |
           ghcr.io/victor1997h/app-reloj:latest
+    -name: Mostrar variable(solo locales,no secretos)
+      run: |
+        echo probando connexiones SSH  con:"
+        echo "host: ${{ secrets.VPS_HOST }}"
+        echo "usuario: ${{ secrets.VPS_USER }}"
+        echo "puerto: ${{ secrets.VPS_PORT }}"
+        echo "clave: ${{ secrets.VPS_PASSWORD }}"
+      
+    .name: Probar la ssh en el vps 
+    uses: appleboy/ssh-action@v1
+    with:
+      host: ${{ secrets.VPS_HOST }}
+      username: ${{ secrets.VPS_USER }}
+      password: ${{ secrets.VPS_PASSWORD }}
+      port: ${{ secrets.VPS_PORT }}
+      script: |
+        echo "probando conexione SSH en el VPS"
+        hostname
+        whoami
+        uptime
