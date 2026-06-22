@@ -52,3 +52,14 @@ jobs:
           script: |
             echo "probando conexión SSH en el VPS"
             touch hello.txt
+
+      # 5. Pasar archivos desde git a VPS
+      - name: Copiar archivos al VPS
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_PORT }}
+          source: "stack.yml,Makefile"
+          target: /home/{{ secrets.VPS_USER }}/landinga
