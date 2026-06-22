@@ -62,4 +62,4 @@ jobs:
           password: ${{ secrets.VPS_PASSWORD }}
           port: ${{ secrets.VPS_PORT }}
           source: "stack.yml,Makefile"
-          target: /home/{{ secrets.VPS_USER }}/landinga
+          target: /home/${{ secrets.VPS_USER }}/landinga
