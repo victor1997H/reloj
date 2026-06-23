@@ -68,13 +68,9 @@ steps:
       port: ${{ secrets.VPS_PORT }}
       script: |
         echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
         docker pull ghcr.io/victor1997h/app-reloj:latest
-
         cd ~/landinga
-
         docker stack deploy -c stack.yml --with-registry-auth app-reloj
-
         docker service ls
         docker ps
 ```
