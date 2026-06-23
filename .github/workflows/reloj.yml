@@ -1,65 +1,88 @@
 name: Publicar Imagen en GitHub Packages
 
 on:
-  push:
-    branches: [ "main"]
+push:
+branches: ["main"]
 
 permissions:
-  contents: read
-  packages: write
+contents: read
+packages: write
 
 jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
+build-and-push:
+runs-on: ubuntu-latest
 
-    steps:
-      - name: Descargar codigo
-        uses: actions/checkout@v4
+```
+steps:
+  - name: Descargar codigo
+    uses: actions/checkout@v4
 
-      # 1. Login en GitHub Container Registry
-      - name: Iniciar sesion en GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+  # 1. Login en GitHub Container Registry
+  - name: Iniciar sesion en GHCR
+    uses: docker/login-action@v3
+    with:
+      registry: ghcr.io
+      username: ${{ github.actor }}
+      password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 2. Build y push de imagen Docker
-      - name: Construir y subir imagen a GitHub Packages
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: |
-            ghcr.io/victor1997h/app-reloj:latest
+  # 2. Build y push de imagen Docker
+  - name: Construir y subir imagen a GitHub Packages
+    uses: docker/build-push-action@v5
+    with:
+      context: .
+      push: true
+      tags: |
+        ghcr.io/victor1997h/app-reloj:latest
 
-      # 3. Mostrar variables (solo debug)
-      - name: Mostrar variables (no secretos sensibles)
-        run: |
-          echo "probando conexiones SSH"
-          echo "host: ${{ secrets.VPS_HOST }}"
-          echo "usuario: ${{ secrets.VPS_USER }}"
-          echo "puerto: ${{ secrets.VPS_PORT }}"
+  # 3. Mostrar variables (solo debug)
+  - name: Mostrar variables
+    run: |
+      echo "probando conexiones SSH"
+      echo "host: ${{ secrets.VPS_HOST }}"
+      echo "usuario: ${{ secrets.VPS_USER }}"
+      echo "puerto: ${{ secrets.VPS_PORT }}"
 
-      # 4. Probar SSH en VPS
-      - name: Probar SSH en el VPS
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          password: ${{ secrets.VPS_PASSWORD }}
-          port: ${{ secrets.VPS_PORT }}
-          script: |
-            echo "probando conexión SSH en el VPS"
-            touch hello.txt
+  # 4. Probar SSH en VPS
+  - name: Probar SSH en el VPS
+    uses: appleboy/ssh-action@v1.0.3
+    with:
+      host: ${{ secrets.VPS_HOST }}
+      username: ${{ secrets.VPS_USER }}
+      password: ${{ secrets.VPS_PASSWORD }}
+      port: ${{ secrets.VPS_PORT }}
+      script: |
+        echo "probando conexión SSH en el VPS"
+        touch hello.txt
 
-      # 5. Pasar archivos desde git a VPS
-      - name: Copiar archivos al VPS
-        uses: appleboy/scp-action@v1.0.0
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          password: ${{ secrets.VPS_PASSWORD }}
-          port: ${{ secrets.VPS_PORT }}
-          source: "stack.yml,Makefile"
-          target: /home/${{ secrets.VPS_USER }}/landinga
+  # 5. Pasar archivos desde git a VPS
+  - name: Copiar archivos al VPS
+    uses: appleboy/scp-action@v1.0.0
+    with:
+      host: ${{ secrets.VPS_HOST }}
+      username: ${{ secrets.VPS_USER }}
+      password: ${{ secrets.VPS_PASSWORD }}
+      port: ${{ secrets.VPS_PORT }}
+      source: "stack.yml,Makefile"
+      target: /home/${{ secrets.VPS_USER }}/landinga
+
+  # 6. Desplegar servicios en el VPS
+  - name: Despliegue de los servicios
+    uses: appleboy/ssh-action@v1
+    with:
+      host: ${{ secrets.VPS_HOST }}
+      username: ${{ secrets.VPS_USER }}
+      password: ${{ secrets.VPS_PASSWORD }}
+      port: ${{ secrets.VPS_PORT }}
+      script: |
+        echo "✅ Desplegando servicios"
+
+        cd ~/landinga
+
+        echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+        docker pull ghcr.io/victor1997h/app-reloj:latest
+
+        docker stack deploy -c stack.yml --with-registry-auth app-reloj
+
+        docker ps
+```
