@@ -23,7 +23,7 @@ services:
         - "traefik.http.routers.app-reloj-secure.tls=true"
         - "traefik.http.routers.app-reloj-secure.tls.certresolver=http"
         - "traefik.http.routers.app-reloj-secure.service=app-reloj"
-        - "traefik.http.services.app-reloj.loadbalancer.server.port=3000"
+        - "traefik.http.services.app-reloj.loadbalancer.server.port=5001"
         - "traefik.docker.network=traefik-public"
 
 networks:

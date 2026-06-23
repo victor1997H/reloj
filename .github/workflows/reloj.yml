@@ -16,7 +16,6 @@ jobs:
       - name: Descargar codigo
         uses: actions/checkout@v4
 
-      # 1. Login en GitHub Container Registry
       - name: Iniciar sesion en GHCR
         uses: docker/login-action@v3
         with:
@@ -24,7 +23,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 2. Build y push de imagen Docker
       - name: Construir y subir imagen a GitHub Packages
         uses: docker/build-push-action@v5
         with:
@@ -33,7 +31,6 @@ jobs:
           tags: |
             ghcr.io/victor1997h/app-reloj:latest
 
-      # 3. Mostrar variables (solo debug)
       - name: Mostrar variables (no secretos sensibles)
         run: |
           echo "probando conexiones SSH"
@@ -41,7 +38,6 @@ jobs:
           echo "usuario: ${{ secrets.VPS_USER }}"
           echo "puerto: ${{ secrets.VPS_PORT }}"
 
-      # 4. Probar SSH en VPS
       - name: Probar SSH en el VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -53,7 +49,17 @@ jobs:
             echo "probando conexión SSH en el VPS"
             touch hello.txt
 
-      # 5. Pasar archivos desde git a VPS
+      # 🔥 FIX IMPORTANTE: asegurar carpeta existe
+      - name: Preparar carpeta en VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            mkdir -p ~/despliegue
+
       - name: Copiar archivos al VPS
         uses: appleboy/scp-action@v1.0.0
         with:
@@ -64,7 +70,7 @@ jobs:
           source: "stack.yml,Makefile"
           target: /home/${{ secrets.VPS_USER }}/despliegue
 
-      # 6. Despliegue real en VPS
+      # 🔥 FIX IMPORTANTE: deploy seguro
       - name: Despliegue de los servicios
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -75,7 +81,9 @@ jobs:
           script: |
             echo "🚀 Desplegando app-reloj"
 
-            cd ~/despliegue
+            cd ~/despliegue || exit 1
+
+            ls -la
 
             echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
