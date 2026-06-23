@@ -2,7 +2,8 @@ name: Publicar Imagen en GitHub Packages
 
 on:
 push:
-branches: ["main"]
+branches:
+- main
 
 permissions:
 contents: read
@@ -31,18 +32,16 @@ steps:
     with:
       context: .
       push: true
-      tags: |
-        ghcr.io/victor1997h/app-reloj:latest
+      tags: ghcr.io/victor1997h/app-reloj:latest
 
-  # 3. Mostrar variables (solo debug)
+  # 3. Mostrar variables
   - name: Mostrar variables
     run: |
-      echo "probando conexiones SSH"
       echo "host: ${{ secrets.VPS_HOST }}"
       echo "usuario: ${{ secrets.VPS_USER }}"
       echo "puerto: ${{ secrets.VPS_PORT }}"
 
-  # 4. Probar SSH en VPS
+  # 4. Probar SSH
   - name: Probar SSH en el VPS
     uses: appleboy/ssh-action@v1.0.3
     with:
@@ -51,10 +50,10 @@ steps:
       password: ${{ secrets.VPS_PASSWORD }}
       port: ${{ secrets.VPS_PORT }}
       script: |
-        echo "probando conexión SSH en el VPS"
-        touch hello.txt
+        echo "Conexion SSH correcta"
+        pwd
 
-  # 5. Pasar archivos desde git a VPS
+  # 5. Copiar archivos
   - name: Copiar archivos al VPS
     uses: appleboy/scp-action@v1.0.0
     with:
@@ -63,26 +62,25 @@ steps:
       password: ${{ secrets.VPS_PASSWORD }}
       port: ${{ secrets.VPS_PORT }}
       source: "stack.yml,Makefile"
-      target: /home/${{ secrets.VPS_USER }}/landinga
+      target: "/home/${{ secrets.VPS_USER }}/landinga"
 
-  # 6. Desplegar servicios en el VPS
+  # 6. Desplegar servicios
   - name: Despliegue de los servicios
-    uses: appleboy/ssh-action@v1
+    uses: appleboy/ssh-action@v1.0.3
     with:
       host: ${{ secrets.VPS_HOST }}
       username: ${{ secrets.VPS_USER }}
       password: ${{ secrets.VPS_PASSWORD }}
       port: ${{ secrets.VPS_PORT }}
       script: |
-        echo "✅ Desplegando servicios"
-
-        cd ~/landinga
-
         echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
         docker pull ghcr.io/victor1997h/app-reloj:latest
 
+        cd ~/landinga
+
         docker stack deploy -c stack.yml --with-registry-auth app-reloj
 
+        docker service ls
         docker ps
 ```
