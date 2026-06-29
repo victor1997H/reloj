@@ -1,10 +1,10 @@
 version: '3.8'
 
 services:
-  app-reloj:
-    image: ghcr.io/victor1997h/app-reloj:latest
+  tecticom:
+    image: ghcr.io/byronmoreno/tecticom:1.0.0
     ports:
-      - "8085:5001"
+      - "1004:5001"
     deploy:
       replicas: 1
       restart_policy:

@@ -1,101 +1,76 @@
-name: Publicar Imagen en GitHub Packages
+name: Python application
 
 on:
   push:
-    branches: [ "main" ]
+    branches: "main"
 
 permissions:
   contents: read
   packages: write
 
 jobs:
-  build-and-push:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Descargar codigo
-        uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.11"
 
-      - name: Iniciar sesion en GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+    - name: 🔐 Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GHCR_TOKEN }}
 
-      - name: Construir y subir imagen a GitHub Packages
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: |
-            ghcr.io/victor1997h/app-reloj:latest
-            ghcr.io/victor1997h/app-reloj:v2
+    - name: 🏗️ Build and push Docker image
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        push: true
+        tags: ghcr.io/byronmoreno/tecticom:1.0.0
 
-      - name: Mostrar variables (no secretos sensibles)
-        run: |
-          echo "probando conexiones SSH"
-          echo "host: ${{ secrets.VPS_HOST }}"
-          echo "usuario: ${{ secrets.VPS_USER }}"
-          echo "puerto: ${{ secrets.VPS_PORT }}"
+    - name: 🧪 Probar conexión SSH
+      uses: appleboy/ssh-action@v1
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USER }}
+        password: ${{ secrets.VPS_PASSWORD }}
+        port: ${{ secrets.VPS_SSH_PORT }}
+        script: |
+          echo "✅ Conexión exitosa desde GitHub Actions"
+          hostname
+        
+    - name: Pasar el stack.yml y Makefile al servidor
+      uses: appleboy/scp-action@v1
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USER }}
+        password: ${{ secrets.VPS_PASSWORD }}
+        port: ${{ secrets.VPS_SSH_PORT }}
+        source: "stack.yml,Makefile"
+        target: "/home/${{ secrets.VPS_USER }}/despliegue"
+        
+    - name: Despliegue de los servicios
+      uses: appleboy/ssh-action@v1
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USER }}
+        password: ${{ secrets.VPS_PASSWORD }}
+        port: ${{ secrets.VPS_SSH_PORT }}
+        script: |
+          echo "✅ Desplegando servicios"        
+          cd ~/despliegue
 
-      - name: Probar SSH en el VPS
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          password: ${{ secrets.VPS_PASSWORD }}
-          port: ${{ secrets.VPS_PORT }}
-          script: |
-            echo "probando conexión SSH en el VPS"
-            touch hello.txt
+          echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker pull ghcr.io/byronmoreno/tecticom:1.0.0
 
-      # 🔥 CREAR CARPETA SEGURA
-      - name: Preparar carpeta en VPS
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          password: ${{ secrets.VPS_PASSWORD }}
-          port: ${{ secrets.VPS_PORT }}
-          script: |
-            mkdir -p ~/despliegue
+          docker stack rm tecticom || true 
+          sleep 15
 
-      # 📦 COPIAR ARCHIVOS
-      - name: Copiar archivos al VPS
-        uses: appleboy/scp-action@v1.0.0
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          password: ${{ secrets.VPS_PASSWORD }}
-          port: ${{ secrets.VPS_PORT }}
-          source: "stack.yml,Makefile"
-          target: /home/${{ secrets.VPS_USER }}/despliegue
-
-      # 🚀 DESPLIEGUE FINAL CORREGIDO
-      - name: Despliegue de los servicios
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          password: ${{ secrets.VPS_PASSWORD }}
-          port: ${{ secrets.VPS_PORT }}
-          script: |
-            echo "🚀 Desplegando app-reloj"
-
-            # 🔥 IMPORTANTE: usar carpeta correcta
-            cd ~/despliegue || exit 1
-
-            ls -la
-
-            # login GHCR (si usas imágenes privadas)
-            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-            # actualizar imagen
-            docker pull ghcr.io/victor1997h/app-reloj:latest
-
-            # desplegar stack
-            echo "==> Desplegando stack..."
-            docker stack deploy -c stack.yml app-reloj
-
-            docker service ls
+          echo "==> Desplegando stack..."
+          docker stack deploy -c stack.yml --with-registry-auth tecticom
