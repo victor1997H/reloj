@@ -1,13 +1,16 @@
-from flask import Flask, render_template_string
+from flask import Flask, render_template_string, request, redirect, url_for
 
 app = Flask(__name__)
+
+# Base de datos temporal en memoria
+tareas = ["Aprender Docker", "Configurar GitHub Actions", "Mejorar la interfaz Cyberpunk"]
 
 HTML = """
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Panel Digital</title>
+<title>Panel Digital - Tareas</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&display=swap" rel="stylesheet">
 
@@ -52,7 +55,7 @@ nav ul li {
 
 /* HERO */
 .hero {
-    height: 90vh;
+    height: 60vh; /* Bajamos un poco el alto para dar espacio a las tareas */
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -66,7 +69,7 @@ nav ul li {
 }
 
 .hero-text h1 {
-    font-size: 50px;
+    font-size: 40px;
     color: #00f5ff;
 }
 
@@ -76,20 +79,45 @@ nav ul li {
     line-height: 1.5;
 }
 
+/* FORMULARIO DE TAREAS */
+.todo-form {
+    margin-top: 25px;
+    display: flex;
+    gap: 10px;
+}
+
+.todo-input {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid #1f2a44;
+    padding: 12px;
+    color: white;
+    border-radius: 8px;
+    width: 70%;
+    font-size: 14px;
+}
+
+.todo-input:focus {
+    outline: none;
+    border-color: #00f5ff;
+    box-shadow: 0 0 10px rgba(0, 245, 255, 0.5);
+}
+
 /* BOTÓN */
 .btn {
-    margin-top: 30px;
     display: inline-block;
     padding: 12px 25px;
     background: #00f5ff;
     color: black;
+    border: none;
     border-radius: 8px;
     font-weight: bold;
     cursor: pointer;
+    font-family: 'Orbitron', sans-serif;
 }
 
 .btn:hover {
     background: #00c2cc;
+    box-shadow: 0 0 15px #00f5ff;
 }
 
 /* RELOJ */
@@ -112,24 +140,59 @@ nav ul li {
     color: #ccc;
 }
 
-/* TARJETAS */
+/* SECCIÓN DE TAREAS (Misma cuadrícula de tus tarjetas anteriores) */
+.section-title {
+    text-align: center;
+    color: #00f5ff;
+    margin-top: 20px;
+    font-size: 24px;
+}
+
 .cards {
     display: flex;
+    flex-wrap: wrap; /* Por si añades muchas tareas, bajarán ordenadamente */
     justify-content: center;
     gap: 20px;
     padding: 40px;
 }
 
 .card {
-    width: 200px;
-    height: 120px;
+    width: 250px;
+    min-height: 120px;
     background: #111a2e;
     border: 1px solid #1f2a44;
     border-radius: 10px;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    color: #00f5ff;
+    justify-content: space-between;
+    padding: 15px;
+    color: #fff;
+    text-align: center;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+.card-text {
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.btn-delete {
+    background: transparent;
+    border: 1px solid #ff4a4a;
+    color: #ff4a4a;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: bold;
+    transition: 0.3s;
+}
+
+.btn-delete:hover {
+    background: #ff4a4a;
+    color: white;
+    box-shadow: 0 0 10px #ff4a4a;
 }
 </style>
 </head>
@@ -140,7 +203,7 @@ nav ul li {
     <h2>Panel Digital</h2>
     <ul>
         <li>Inicio</li>
-        <li>Acerca de</li>
+        <li>Tareas</li>
         <li>Servicios</li>
         <li>Contacto</li>
     </ul>
@@ -149,12 +212,15 @@ nav ul li {
 <div class="hero">
 
     <div class="hero-text">
-        <h1>Sistema Digital con Reloj en Tiempo Real</h1>
+        <h1>Organizador de Tareas Futurista</h1>
         <p>
-            Plataforma moderna desarrollada con Flask.  
-            Incluye un reloj dinámico en vivo con diseño futurista estilo panel tecnológico.
+            Plataforma moderna desarrollada con Flask. Genera, administra y destruye tus objetivos diarios en tiempo real.
         </p>
-        <div class="btn">Comenzar</div>
+        
+        <form class="todo-form" action="/agregar" method="POST">
+            <input type="text" name="nueva_tarea" class="todo-input" placeholder="Escribe un nuevo objetivo..." required autocomplete="off">
+            <button type="submit" class="btn">Asignar</button>
+        </form>
     </div>
 
     <div class="clock-box">
@@ -164,10 +230,19 @@ nav ul li {
 
 </div>
 
+<h3 class="section-title">Objetivos Activos</h3>
+
 <div class="cards">
-    <div class="card">Análisis</div>
-    <div class="card">Rendimiento</div>
-    <div class="card">Seguridad</div>
+    {% if tareas %}
+        {% for tarea in tareas %}
+        <div class="card">
+            <div class="card-text">{{ tarea }}</div>
+            <a href="/eliminar/{{ loop.index0 }}"><button class="btn-delete">Completado</button></a>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div style="color: #aaa; font-style: italic;">No hay objetivos pendientes. ¡Buen trabajo!</div>
+    {% endif %}
 </div>
 
 <script>
@@ -194,7 +269,21 @@ actualizarReloj();
 
 @app.route("/")
 def home():
-    return render_template_string(HTML)
+    # Enviamos la lista de tareas a la plantilla HTML
+    return render_template_string(HTML, tareas=tareas)
+
+@app.route("/agregar", methods=["POST"])
+def agregar():
+    tarea_recibida = request.form.get("nueva_tarea")
+    if tarea_recibida:
+        tareas.append(tarea_recibida) # Se añade a la lista
+    return redirect(url_for("home"))
+
+@app.route("/eliminar/<int:id>")
+def eliminar(id):
+    if 0 <= id < len(tareas):
+        tareas.pop(id) # Se elimina por su índice
+    return redirect(url_for("home"))
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)

@@ -26,6 +26,9 @@ services:
         - "traefik.http.services.app-reloj.loadbalancer.server.port=5001"
         - "traefik.docker.network=traefik-public"
 
+    networks:
+      - traefik-public
+
 networks:
   traefik-public:
     external: true

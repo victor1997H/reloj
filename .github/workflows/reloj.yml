@@ -30,6 +30,7 @@ jobs:
           push: true
           tags: |
             ghcr.io/victor1997h/app-reloj:latest
+            ghcr.io/victor1997h/app-reloj:v2
 
       - name: Mostrar variables (no secretos sensibles)
         run: |
@@ -49,7 +50,7 @@ jobs:
             echo "probando conexión SSH en el VPS"
             touch hello.txt
 
-      # 🔥 FIX IMPORTANTE: asegurar carpeta existe
+      # 🔥 CREAR CARPETA SEGURA
       - name: Preparar carpeta en VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -60,6 +61,7 @@ jobs:
           script: |
             mkdir -p ~/despliegue
 
+      # 📦 COPIAR ARCHIVOS
       - name: Copiar archivos al VPS
         uses: appleboy/scp-action@v1.0.0
         with:
@@ -70,7 +72,7 @@ jobs:
           source: "stack.yml,Makefile"
           target: /home/${{ secrets.VPS_USER }}/despliegue
 
-      # 🔥 FIX IMPORTANTE: deploy seguro
+      # 🚀 DESPLIEGUE FINAL CORREGIDO
       - name: Despliegue de los servicios
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -81,15 +83,19 @@ jobs:
           script: |
             echo "🚀 Desplegando app-reloj"
 
+            # 🔥 IMPORTANTE: usar carpeta correcta
             cd ~/despliegue || exit 1
 
             ls -la
 
+            # login GHCR (si usas imágenes privadas)
             echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
+            # actualizar imagen
             docker pull ghcr.io/victor1997h/app-reloj:latest
 
+            # desplegar stack
             echo "==> Desplegando stack..."
             docker stack deploy -c stack.yml app-reloj
 
-            docker ps
+            docker service ls

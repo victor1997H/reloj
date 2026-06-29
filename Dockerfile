@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-EXPOSE 5000
+# Cambiado a 5001 para que coincida con tu app.py
+EXPOSE 5001
 
 CMD ["python", "app.py"]
